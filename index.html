@@ -605,7 +605,7 @@
                 <p>Ready to start your project? Contact me today for a free consultation and quote.</p>
                 <div class="contact-info">
                     <p>📞 Phone: <a href="tel:555-123-4567">(555) 123-4567</a></p>
-                    <p>✉️ Email: <a href="/cdn-cgi/l/email-protection#ec86838482ac868e8f83829f989e998f98858382c28f8381"><span class="__cf_email__" data-cfemail="345e5b5c5a745e56575b5a4740464157405d5b5a1a575b59">[email&#160;protected]</span></a></p>
+                    <p>✉️ Email: <a href="mailto:info@soulrenovations.com">info@soulrenovations.com</a></p>
                     <p>📍 Serving Lancaster County, PA</p>
                 </div>
                 <a href="tel:555-123-4567" class="btn">Call Now</a>
@@ -620,42 +620,49 @@
         </div>
     </footer>
 
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script>
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         // Gallery functionality
         let galleryImages = [];
         let currentImageIndex = 0;
 
-        // Load photos from database
         async function loadPhotos() {
             try {
-                const response = await fetch('get_photos.php');
-                const photos = await response.json();
-                
-                if (photos.length === 0) {
+                const { data: photos, error } = await supabase
+                    .from('photos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!photos || photos.length === 0) {
                     document.getElementById('gallery-grid').innerHTML = '<p style="text-align: center; color: #999;">No photos yet. Add photos through the admin panel.</p>';
                     return;
                 }
-                
-                galleryImages = photos.map(photo => photo.url);
-                
+
+                galleryImages = photos.map(photo => photo.public_url);
+
                 const galleryGrid = document.getElementById('gallery-grid');
                 galleryGrid.innerHTML = '';
-                
+
                 photos.forEach((photo, index) => {
                     const galleryItem = document.createElement('div');
                     galleryItem.className = 'gallery-item';
                     galleryItem.onclick = () => openLightbox(index);
-                    
+
                     const img = document.createElement('img');
-                    img.src = photo.url;
-                    img.alt = photo.alt;
-                    
+                    img.src = photo.public_url;
+                    img.alt = photo.alt_text || 'Project photo';
+
                     galleryItem.appendChild(img);
                     galleryGrid.appendChild(galleryItem);
                 });
             } catch (error) {
                 console.error('Error loading photos:', error);
-                document.getElementById('gallery-grid').innerHTML = '<p style="text-align: center; color: #e74c3c;">Error loading photos. Please check your backend connection.</p>';
+                document.getElementById('gallery-grid').innerHTML = '<p style="text-align: center; color: #e74c3c;">Error loading photos.</p>';
             }
         }
 
@@ -663,7 +670,7 @@
             currentImageIndex = index;
             const lightbox = document.getElementById('lightbox');
             const lightboxImg = document.getElementById('lightbox-img');
-            
+
             lightboxImg.src = galleryImages[currentImageIndex];
             lightbox.classList.add('active');
             document.body.style.overflow = 'hidden';
@@ -679,17 +686,16 @@
 
         function changeImage(direction) {
             currentImageIndex += direction;
-            
+
             if (currentImageIndex < 0) {
                 currentImageIndex = galleryImages.length - 1;
             } else if (currentImageIndex >= galleryImages.length) {
                 currentImageIndex = 0;
             }
-            
+
             document.getElementById('lightbox-img').src = galleryImages[currentImageIndex];
         }
 
-        // Keyboard navigation for gallery
         document.addEventListener('keydown', function(e) {
             const lightbox = document.getElementById('lightbox');
             if (lightbox.classList.contains('active')) {
@@ -709,45 +715,46 @@
         let reviewCards = [];
         let dots = [];
 
-        // Load reviews from database
         async function loadReviews() {
             try {
-                const response = await fetch('get_reviews.php');
-                const reviews = await response.json();
-                
-                if (reviews.length === 0) {
+                const { data: reviews, error } = await supabase
+                    .from('reviews')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!reviews || reviews.length === 0) {
                     document.getElementById('reviews-content').innerHTML = '<p style="text-align: center; color: #999;">No reviews yet. Add reviews through the admin panel.</p>';
                     return;
                 }
-                
+
                 const reviewsContent = document.getElementById('reviews-content');
                 reviewsContent.innerHTML = '';
-                
+
                 reviews.forEach((review, index) => {
                     const reviewCard = document.createElement('div');
                     reviewCard.className = 'review-card';
                     if (index === 0) reviewCard.classList.add('active');
-                    
-                    const stars = '★'.repeat(review.rating);
-                    
+
+                    const stars = '\u2605'.repeat(review.rating);
+
                     reviewCard.innerHTML = `
                         <div class="review-stars">${stars}</div>
-                        <p class="review-text">"${review.text}"</p>
+                        <p class="review-text">"${review.review_text}"</p>
                         <p class="review-author">${review.name}</p>
                         <p class="review-location">${review.location}</p>
                     `;
-                    
+
                     reviewsContent.appendChild(reviewCard);
                 });
-                
-                // Show navigation if there are multiple reviews
+
                 if (reviews.length > 1) {
                     document.getElementById('review-nav').style.display = 'flex';
-                    
-                    // Generate dots
+
                     const dotsContainer = document.getElementById('review-dots');
                     dotsContainer.innerHTML = '';
-                    
+
                     reviews.forEach((_, index) => {
                         const dot = document.createElement('span');
                         dot.className = 'dot';
@@ -756,12 +763,10 @@
                         dotsContainer.appendChild(dot);
                     });
                 }
-                
-                // Update global references
+
                 reviewCards = document.querySelectorAll('.review-card');
                 dots = document.querySelectorAll('.dot');
-                
-                // Start auto-rotation if there are multiple reviews
+
                 if (reviews.length > 1) {
                     setInterval(() => {
                         changeReview(1);
@@ -769,14 +774,14 @@
                 }
             } catch (error) {
                 console.error('Error loading reviews:', error);
-                document.getElementById('reviews-content').innerHTML = '<p style="text-align: center; color: #e74c3c;">Error loading reviews. Please check your backend connection.</p>';
+                document.getElementById('reviews-content').innerHTML = '<p style="text-align: center; color: #e74c3c;">Error loading reviews.</p>';
             }
         }
 
         function showReview(index) {
             reviewCards.forEach(card => card.classList.remove('active'));
             dots.forEach(dot => dot.classList.remove('active'));
-            
+
             currentReviewIndex = index;
             if (reviewCards[currentReviewIndex]) {
                 reviewCards[currentReviewIndex].classList.add('active');
@@ -788,17 +793,16 @@
 
         function changeReview(direction) {
             currentReviewIndex += direction;
-            
+
             if (currentReviewIndex < 0) {
                 currentReviewIndex = reviewCards.length - 1;
             } else if (currentReviewIndex >= reviewCards.length) {
                 currentReviewIndex = 0;
             }
-            
+
             showReview(currentReviewIndex);
         }
 
-        // Load data when page loads
         window.addEventListener('DOMContentLoaded', function() {
             loadPhotos();
             loadReviews();

@@ -1,181 +1,112 @@
-# JB Construction Website - Backend Setup Guide
+# Soul Renovations Website
 
-## Overview
-This is a complete construction website with a PHP/SQLite backend admin panel for managing photos and reviews.
+Construction company landing page with admin panel for managing photos and reviews.
 
-## Files Included
-- `construction-landing-page.html` - Main website (frontend)
-- `init_db.php` - Database initialization script
-- `admin_login.php` - Admin login page
-- `admin_panel.php` - Admin panel for managing photos and reviews
-- `logout.php` - Logout functionality
-- `get_photos.php` - API endpoint to fetch photos
-- `get_reviews.php` - API endpoint to fetch reviews
-- `construction_site.db` - SQLite database (created after running init_db.php)
+## Tech Stack
+- **Frontend**: Static HTML/CSS/JS hosted on GitHub Pages
+- **Backend**: Supabase (database, file storage, authentication)
+- **Cost**: Free
 
-## Requirements
-- PHP 7.4 or higher with SQLite3 extension enabled
-- Web server (Apache, Nginx, or PHP built-in server)
-- Write permissions for the website directory
+## Files
+- `index.html` - Main landing page (public)
+- `admin-login.html` - Admin login page
+- `admin.html` - Admin panel for managing photos and reviews
+- `supabase-config.js` - Supabase project credentials
+- `supabase-setup.sql` - Database setup script (run once in Supabase)
+- `.github/workflows/keep-alive.yml` - Keeps Supabase free tier active
 
-## Installation Steps
+## Setup Instructions
 
-### 1. Upload Files
-Upload all PHP files to your web server in the same directory as your HTML file.
+See the detailed setup guide below to get this site live.
 
-### 2. Initialize the Database
-Open your browser and navigate to:
-```
-http://yourdomain.com/init_db.php
-```
+### Step 1: Create a Supabase Account
+1. Go to **supabase.com** and click **Start your project**
+2. Sign up with your GitHub account (or email)
+3. Click **New Project**
+4. Choose a name (e.g., `soul-renovations`), set a database password, pick a region close to you
+5. Click **Create new project** and wait for it to finish setting up
 
-This will:
-- Create the SQLite database file (`construction_site.db`)
-- Set up the necessary tables (photos, reviews, admin_users)
-- Create a default admin account
+### Step 2: Create the Database Tables
+1. In your Supabase project, click **SQL Editor** in the left sidebar
+2. Click **New query**
+3. Copy the entire contents of `supabase-setup.sql` and paste it in
+4. Click **Run** (or Ctrl+Enter)
+5. You should see "Success. No rows returned" — this means it worked
 
-**Default Admin Credentials:**
-- Username: `admin`
-- Password: `admin123`
+### Step 3: Create the Photo Storage Bucket
+1. Click **Storage** in the left sidebar
+2. Click **New bucket**
+3. Name it exactly: `photos`
+4. Toggle **Public bucket** to ON
+5. Click **Create bucket**
+6. Click on the `photos` bucket, then click **Policies**
+7. Under **Other policies under storage.objects**, click **New policy**
+8. Click **For full customization**
+9. Set Policy name: `Allow public read`
+10. Set Allowed operation: **SELECT**
+11. Leave Target roles empty (applies to all)
+12. Set the policy definition to: `true`
+13. Click **Review** then **Save policy**
+14. Create another policy: name it `Allow auth upload`, operation **INSERT**, target role `authenticated`, definition `true`
+15. Create another policy: name it `Allow auth delete`, operation **DELETE**, target role `authenticated`, definition `true`
 
-**IMPORTANT:** Delete or rename `init_db.php` after running it to prevent unauthorized database resets!
+### Step 4: Create Your Admin User
+1. Click **Authentication** in the left sidebar
+2. Click **Users** tab
+3. Click **Add user** > **Create new user**
+4. Enter your email and a strong password
+5. Toggle **Auto Confirm User** to ON
+6. Click **Create user**
+7. Remember this email and password — you'll use it to log into the admin panel
 
-### 3. Set File Permissions
-Make sure the directory is writable so PHP can:
-- Create the database file
-- Create the `uploads/` folder for photos
-- Upload images
-
-On Linux/Mac:
-```bash
-chmod 755 /path/to/website
-chmod 666 construction_site.db
-chmod 755 uploads/
-```
-
-### 4. Access the Admin Panel
-Navigate to:
-```
-http://yourdomain.com/admin_login.php
-```
-
-Login with the default credentials and **immediately change your password**!
-
-### 5. Rename the Landing Page (Optional)
-Rename `construction-landing-page.html` to `index.html` to make it your homepage:
-```
-mv construction-landing-page.html index.html
-```
-
-## Using the Admin Panel
-
-### Adding Photos
-1. Click "Select Photo" and choose an image file
-2. Add a description (alt text) for accessibility
-3. Click "Upload Photo"
-4. Photos will appear in the gallery on your main website
-
-### Adding Reviews
-1. Fill in customer name
-2. Enter location (e.g., "Lancaster, PA")
-3. Select star rating (1-5 stars)
-4. Write the review text
-5. Click "Add Review"
-6. Reviews will appear in the carousel on your main website
-
-### Deleting Content
-- Click the "Delete" button under any photo or review
-- Confirm the deletion
-- The item will be removed from both the admin panel and the website
-
-## Security Recommendations
-
-### 1. Change Default Password
-After first login, change the admin password in the database:
-```php
-<?php
-$db = new SQLite3('construction_site.db');
-$new_password = password_hash('your_new_secure_password', PASSWORD_DEFAULT);
-$db->exec("UPDATE admin_users SET password = '$new_password' WHERE username = 'admin'");
-echo "Password updated!";
-?>
+### Step 5: Get Your Supabase Credentials
+1. Click **Settings** (gear icon) in the left sidebar
+2. Click **API** under Configuration
+3. Copy your **Project URL** (looks like `https://abcdefg.supabase.co`)
+4. Copy your **anon public** key (the long string under Project API keys)
+5. Open `supabase-config.js` and replace the placeholders:
+```js
+const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';
 ```
 
-### 2. Restrict Admin Access
-Add `.htaccess` file to protect admin pages:
-```apache
-<Files "admin_*.php">
-    # Require IP address or authentication
-    Require ip 123.456.789.0
-</Files>
+### Step 6: Push to GitHub
+1. Create a new repository on GitHub called `soul-renovations`
+2. Don't add a README or .gitignore (we already have them)
+3. Copy the repo URL and run:
+```
+git remote add origin https://github.com/YOUR_USERNAME/soul-renovations.git
+git branch -M main
+git push -u origin main
 ```
 
-### 3. Enable HTTPS
-Always use HTTPS in production to protect login credentials.
+### Step 7: Enable GitHub Pages
+1. Go to your GitHub repo in the browser
+2. Click **Settings** tab
+3. Click **Pages** in the left sidebar
+4. Under **Source**, select **Deploy from a branch**
+5. Select **main** branch and **/ (root)** folder
+6. Click **Save**
+7. Wait 1-2 minutes, then your site is live at: `https://YOUR_USERNAME.github.io/soul-renovations/`
 
-### 4. Regular Backups
-Backup your database file regularly:
-```bash
-cp construction_site.db construction_site_backup_$(date +%Y%m%d).db
-```
+### Step 8: Set Up Keep-Alive (prevents Supabase from pausing)
+1. In your GitHub repo, click **Settings** > **Secrets and variables** > **Actions**
+2. Click **New repository secret**
+3. Add secret named `SUPABASE_URL` with your project URL
+4. Add secret named `SUPABASE_ANON_KEY` with your anon key
 
-## Testing Locally
+### Step 9: Test Everything
+1. Visit your GitHub Pages URL — the landing page should load
+2. Visit `your-url/admin-login.html` — log in with the email/password from Step 4
+3. Upload a test photo and add a test review
+4. Go back to the landing page — they should appear in the gallery and review carousel
 
-### Using PHP Built-in Server
-```bash
-cd /path/to/website
-php -S localhost:8000
-```
-
-Then visit: `http://localhost:8000`
-
-## Troubleshooting
-
-### Photos Not Showing
-- Check that `uploads/` directory exists and is writable
-- Verify images uploaded successfully in admin panel
-- Check browser console for JavaScript errors
-- Ensure `get_photos.php` is accessible
-
-### Reviews Not Showing
-- Check browser console for errors
-- Verify `get_reviews.php` returns JSON data
-- Make sure database has reviews added
-
-### Can't Login to Admin
-- Verify `construction_site.db` exists
-- Check file permissions
-- Ensure SQLite3 PHP extension is installed:
-  ```bash
-  php -m | grep sqlite3
-  ```
-
-### Database Errors
-- Delete `construction_site.db` and run `init_db.php` again
-- Check PHP error logs for detailed messages
-
-## Customization
-
-### Change Company Name
-Edit these files:
-- `construction-landing-page.html` - Update header and content
-- `admin_panel.php` - Update page title
-
-### Add More Services
-Edit the Services section in `construction-landing-page.html`
-
-### Change Color Scheme
-Modify CSS variables in `construction-landing-page.html`:
-- `#e67e22` - Orange (primary color)
-- `#2c3e50` - Dark blue (header/footer)
-
-## Support
-
-For issues or questions:
-1. Check file permissions
-2. Review PHP error logs
-3. Test with PHP built-in server
-4. Verify SQLite3 is installed and enabled
+## Connecting a Custom Domain (Optional)
+1. In your GitHub repo Settings > Pages, click **Add a custom domain**
+2. Enter your domain (e.g., `soulrenovations.com`)
+3. At your domain registrar, add a CNAME record pointing to `YOUR_USERNAME.github.io`
+4. Wait for DNS to propagate (up to 24 hours)
+5. Check **Enforce HTTPS** once it becomes available
 
 ## License
 Free to use and modify for your business needs.
