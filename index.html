@@ -623,7 +623,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script>
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Gallery functionality
         let galleryImages = [];
@@ -631,7 +631,7 @@
 
         async function loadPhotos() {
             try {
-                const { data: photos, error } = await supabase
+                const { data: photos, error } = await sb
                     .from('photos')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -717,7 +717,7 @@
 
         async function loadReviews() {
             try {
-                const { data: reviews, error } = await supabase
+                const { data: reviews, error } = await sb
                     .from('reviews')
                     .select('*')
                     .order('created_at', { ascending: false });
