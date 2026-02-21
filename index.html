@@ -449,26 +449,85 @@
             padding: 2rem 0;
         }
 
+        /* Hamburger Button - hidden on desktop */
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            z-index: 200;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 28px;
+            height: 3px;
+            background: #2c3e50;
+            margin: 5px 0;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -6px);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .hero-content h2 {
                 font-size: 2rem;
             }
 
-            nav {
-                display: none;
+            .hamburger {
+                display: block;
             }
 
-            header h1 {
-                font-size: 1rem;
+            nav {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: #e8f4f8;
+                padding: 1rem 0;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                z-index: 150;
+            }
+
+            nav.nav-open {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            nav a {
+                margin: 0;
+                padding: 0.8rem 2rem;
+                display: block;
+                width: 100%;
+                text-align: center;
+                font-size: 1.1rem;
+            }
+
+            nav a:hover {
+                background: rgba(230, 126, 34, 0.1);
             }
 
             .logo-container img {
-                height: 120px;
+                height: 100px;
             }
 
             header {
-                padding: 1rem 0;
+                padding: 0.5rem 0;
             }
 
             header::after {
@@ -476,7 +535,7 @@
             }
 
             .hero {
-                padding-top: 160px;
+                padding-top: 140px;
             }
         }
     </style>
@@ -486,16 +545,20 @@
     <header>
         <div class="container">
             <div class="logo-container">
-                <img src="logo.png" alt="Soul Renovations Logo">
-                <h1>Soul Renovations</h1>
+                <img src="logo2.png" alt="Soul Renovations Logo">
             </div>
-            <nav>
+            <nav id="main-nav">
                 <a href="#services">Services</a>
                 <a href="#gallery">Gallery</a>
                 <a href="#reviews">Reviews</a>
                 <a href="#about">About</a>
                 <a href="#contact">Contact</a>
             </nav>
+            <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </div>
     </header>
 
@@ -802,6 +865,20 @@
 
             showReview(currentReviewIndex);
         }
+
+        // Hamburger menu toggle
+        function toggleMenu() {
+            document.getElementById('main-nav').classList.toggle('nav-open');
+            document.getElementById('hamburger').classList.toggle('active');
+        }
+
+        // Close menu when a nav link is clicked
+        document.querySelectorAll('#main-nav a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('main-nav').classList.remove('nav-open');
+                document.getElementById('hamburger').classList.remove('active');
+            });
+        });
 
         window.addEventListener('DOMContentLoaded', function() {
             loadPhotos();
