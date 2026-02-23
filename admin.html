@@ -134,6 +134,119 @@
             cursor: not-allowed;
         }
 
+        /* Drop Zone */
+        .drop-zone {
+            border: 3px dashed #ccc;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+            margin-bottom: 1rem;
+        }
+
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: #e67e22;
+            background: #fef5ec;
+        }
+
+        .drop-zone-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone-text {
+            color: #777;
+            font-size: 1.1rem;
+        }
+
+        .drop-zone-text span {
+            color: #e67e22;
+            font-weight: 600;
+        }
+
+        /* Preview Grid */
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .preview-item {
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .preview-item .preview-name {
+            font-size: 0.75rem;
+            color: #555;
+            padding: 0.3rem 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: #f9f9f9;
+        }
+
+        .preview-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .preview-remove:hover {
+            background: #c0392b;
+        }
+
+        .file-count {
+            color: #555;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        /* Progress Bar */
+        .upload-progress {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .upload-progress-bar {
+            height: 100%;
+            background: #e67e22;
+            border-radius: 4px;
+            transition: width 0.3s;
+            width: 0%;
+        }
+
         .photo-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -222,19 +335,29 @@
 
         <!-- Photo Management Section -->
         <div class="section">
-            <h2>Add New Photo</h2>
+            <h2>Add Photos</h2>
             <form id="photo-form">
-                <div class="form-group">
-                    <label for="photo">Select Photo</label>
-                    <input type="file" id="photo" name="photo" accept="image/*" required>
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-icon">📷</div>
+                    <div class="drop-zone-text">
+                        <span>Click to browse</span> or drag & drop photos here
+                    </div>
+                    <input type="file" id="photo" name="photo" accept="image/*" multiple style="display:none;">
                 </div>
 
+                <div class="file-count" id="file-count" style="display:none;"></div>
+                <div class="preview-grid" id="preview-grid"></div>
+
                 <div class="form-group">
-                    <label for="alt_text">Description (Alt Text)</label>
+                    <label for="alt_text">Description (optional, applies to all)</label>
                     <input type="text" id="alt_text" name="alt_text" placeholder="e.g., Kitchen renovation project">
                 </div>
 
-                <button type="submit" id="upload-btn">Upload Photo</button>
+                <div class="upload-progress" id="upload-progress">
+                    <div class="upload-progress-bar" id="upload-progress-bar"></div>
+                </div>
+
+                <button type="submit" id="upload-btn" disabled>Upload Photos</button>
             </form>
 
             <h2 style="margin-top: 2rem;">Existing Photos</h2>
@@ -315,6 +438,89 @@
 
         // ==================== PHOTOS ====================
 
+        // Track selected files
+        let selectedFiles = [];
+
+        // Drop zone setup
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('photo');
+        const previewGrid = document.getElementById('preview-grid');
+        const fileCount = document.getElementById('file-count');
+        const uploadBtn = document.getElementById('upload-btn');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            addFiles(files);
+        });
+
+        fileInput.addEventListener('change', () => {
+            addFiles(Array.from(fileInput.files));
+            fileInput.value = '';
+        });
+
+        function addFiles(newFiles) {
+            selectedFiles = selectedFiles.concat(newFiles);
+            updatePreviews();
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updatePreviews();
+        }
+
+        function updatePreviews() {
+            previewGrid.innerHTML = '';
+
+            if (selectedFiles.length === 0) {
+                fileCount.style.display = 'none';
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = 'Upload Photos';
+                return;
+            }
+
+            fileCount.style.display = 'block';
+            fileCount.textContent = selectedFiles.length + ' photo' + (selectedFiles.length !== 1 ? 's' : '') + ' selected';
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload ' + selectedFiles.length + ' Photo' + (selectedFiles.length !== 1 ? 's' : '');
+
+            selectedFiles.forEach((file, i) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.onload = () => URL.revokeObjectURL(img.src);
+
+                const name = document.createElement('div');
+                name.className = 'preview-name';
+                name.textContent = file.name;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'preview-remove';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.type = 'button';
+                removeBtn.onclick = () => removeFile(i);
+
+                item.appendChild(img);
+                item.appendChild(name);
+                item.appendChild(removeBtn);
+                previewGrid.appendChild(item);
+            });
+        }
+
         async function loadPhotos() {
             const { data: photos, error } = await sb
                 .from('photos')
@@ -349,64 +555,86 @@
             });
         }
 
-        // Handle photo upload
+        // Handle multi-photo upload
         document.getElementById('photo-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const btn = document.getElementById('upload-btn');
-            btn.disabled = true;
-            btn.textContent = 'Uploading...';
 
-            const fileInput = document.getElementById('photo');
+            if (selectedFiles.length === 0) {
+                showMessage('Please select at least one photo.', 'error');
+                return;
+            }
+
             const altText = document.getElementById('alt_text').value;
-            const file = fileInput.files[0];
+            const total = selectedFiles.length;
+            let uploaded = 0;
+            let failed = [];
 
-            if (!file) {
-                showMessage('Please select a photo.', 'error');
-                btn.disabled = false;
-                btn.textContent = 'Upload Photo';
-                return;
+            uploadBtn.disabled = true;
+            const progressContainer = document.getElementById('upload-progress');
+            const progressBar = document.getElementById('upload-progress-bar');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            for (let i = 0; i < total; i++) {
+                const file = selectedFiles[i];
+                uploadBtn.textContent = 'Uploading ' + (i + 1) + ' of ' + total + '...';
+                progressBar.style.width = ((i / total) * 100) + '%';
+
+                try {
+                    // Generate unique filename
+                    const ext = file.name.split('.').pop();
+                    const filename = Date.now() + '_' + Math.random().toString(36).substring(2, 8) + '.' + ext;
+                    const storagePath = filename;
+
+                    // Upload to Supabase Storage
+                    const { error: uploadError } = await sb.storage
+                        .from('photos')
+                        .upload(storagePath, file);
+
+                    if (uploadError) {
+                        failed.push(file.name + ': ' + uploadError.message);
+                        continue;
+                    }
+
+                    // Get public URL
+                    const { data: urlData } = sb.storage.from('photos').getPublicUrl(storagePath);
+                    const publicUrl = urlData.publicUrl;
+
+                    // Insert record into database
+                    const { error: dbError } = await sb.from('photos').insert({
+                        filename: filename,
+                        alt_text: altText,
+                        storage_path: storagePath,
+                        public_url: publicUrl
+                    });
+
+                    if (dbError) {
+                        failed.push(file.name + ': ' + dbError.message);
+                        continue;
+                    }
+
+                    uploaded++;
+                } catch (err) {
+                    failed.push(file.name + ': ' + err.message);
+                }
             }
 
-            // Generate unique filename
-            const ext = file.name.split('.').pop();
-            const filename = Date.now() + '_' + Math.random().toString(36).substring(2, 8) + '.' + ext;
-            const storagePath = filename;
+            progressBar.style.width = '100%';
 
-            // Upload to Supabase Storage
-            const { error: uploadError } = await sb.storage
-                .from('photos')
-                .upload(storagePath, file);
-
-            if (uploadError) {
-                showMessage('Error uploading photo: ' + uploadError.message, 'error');
-                btn.disabled = false;
-                btn.textContent = 'Upload Photo';
-                return;
+            if (failed.length === 0) {
+                showMessage(uploaded + ' photo' + (uploaded !== 1 ? 's' : '') + ' uploaded successfully!', 'success');
+            } else {
+                showMessage(uploaded + ' uploaded, ' + failed.length + ' failed: ' + failed.join('; '), failed.length === total ? 'error' : 'success');
             }
 
-            // Get public URL
-            const { data: urlData } = sb.storage.from('photos').getPublicUrl(storagePath);
-            const publicUrl = urlData.publicUrl;
-
-            // Insert record into database
-            const { error: dbError } = await sb.from('photos').insert({
-                filename: filename,
-                alt_text: altText,
-                storage_path: storagePath,
-                public_url: publicUrl
-            });
-
-            if (dbError) {
-                showMessage('Error saving photo info: ' + dbError.message, 'error');
-                btn.disabled = false;
-                btn.textContent = 'Upload Photo';
-                return;
-            }
-
-            showMessage('Photo uploaded successfully!', 'success');
-            btn.disabled = false;
-            btn.textContent = 'Upload Photo';
-            this.reset();
+            // Reset
+            selectedFiles = [];
+            updatePreviews();
+            document.getElementById('alt_text').value = '';
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Upload Photos';
             loadPhotos();
         });
 
