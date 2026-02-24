@@ -724,6 +724,7 @@
                     const img = document.createElement('img');
                     img.src = photo.public_url;
                     img.alt = photo.alt_text || 'Project photo';
+                    img.loading = 'lazy';
 
                     galleryItem.appendChild(img);
                     galleryGrid.appendChild(galleryItem);

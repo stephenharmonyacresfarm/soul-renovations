@@ -436,6 +436,61 @@
             setTimeout(() => { el.className = 'message'; }, 4000);
         }
 
+        // ==================== IMAGE COMPRESSION ====================
+
+        function compressImage(file, maxSize = 1600, quality = 0.8) {
+            return new Promise((resolve) => {
+                // If file is already small (under 500KB), skip compression
+                if (file.size < 500 * 1024) {
+                    resolve(file);
+                    return;
+                }
+
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Resize if larger than maxSize
+                    if (width > maxSize || height > maxSize) {
+                        if (width > height) {
+                            height = Math.round((height * maxSize) / width);
+                            width = maxSize;
+                        } else {
+                            width = Math.round((width * maxSize) / height);
+                            height = maxSize;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        // Create a new File object with .jpg extension
+                        const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                            type: 'image/jpeg',
+                            lastModified: Date.now()
+                        });
+                        resolve(compressed);
+                    }, 'image/jpeg', quality);
+                };
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    resolve(file); // Fall back to original on error
+                };
+
+                img.src = url;
+            });
+        }
+
         // ==================== PHOTOS ====================
 
         // Track selected files
@@ -577,19 +632,21 @@
 
             for (let i = 0; i < total; i++) {
                 const file = selectedFiles[i];
-                uploadBtn.textContent = 'Uploading ' + (i + 1) + ' of ' + total + '...';
+                uploadBtn.textContent = 'Compressing & uploading ' + (i + 1) + ' of ' + total + '...';
                 progressBar.style.width = ((i / total) * 100) + '%';
 
                 try {
-                    // Generate unique filename
-                    const ext = file.name.split('.').pop();
-                    const filename = Date.now() + '_' + Math.random().toString(36).substring(2, 8) + '.' + ext;
+                    // Compress image before upload
+                    const compressed = await compressImage(file);
+
+                    // Generate unique filename (always .jpg after compression)
+                    const filename = Date.now() + '_' + Math.random().toString(36).substring(2, 8) + '.jpg';
                     const storagePath = filename;
 
-                    // Upload to Supabase Storage
+                    // Upload compressed image to Supabase Storage
                     const { error: uploadError } = await sb.storage
                         .from('photos')
-                        .upload(storagePath, file);
+                        .upload(storagePath, compressed);
 
                     if (uploadError) {
                         failed.push(file.name + ': ' + uploadError.message);
