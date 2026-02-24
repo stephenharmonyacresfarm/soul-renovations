@@ -247,6 +247,7 @@
             width: 0%;
         }
 
+        /* Photo Grid */
         .photo-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -258,6 +259,11 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             overflow: hidden;
+            cursor: grab;
+        }
+
+        .photo-item:active {
+            cursor: grabbing;
         }
 
         .photo-item img {
@@ -277,16 +283,130 @@
             font-size: 0.9rem;
         }
 
+        .photo-btn-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .edit-btn {
+            background: #3498db;
+            flex: 1;
+        }
+
+        .edit-btn:hover {
+            background: #2980b9;
+        }
+
         .delete-btn {
             background: #e74c3c;
-            width: 100%;
-            margin-top: 0.5rem;
+            flex: 1;
         }
 
         .delete-btn:hover {
             background: #c0392b;
         }
 
+        /* Inline Edit Form */
+        .edit-form {
+            padding: 1rem;
+            background: #fff8e1;
+        }
+
+        .edit-form .form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .edit-form label {
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .edit-form input[type="text"] {
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .edit-form .edit-btn-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .save-edit-btn {
+            background: #27ae60;
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .save-edit-btn:hover {
+            background: #219a52;
+        }
+
+        .cancel-edit-btn {
+            background: #95a5a6;
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .cancel-edit-btn:hover {
+            background: #7f8c8d;
+        }
+
+        /* Drag-and-drop reordering */
+        .photo-item.sortable-ghost {
+            opacity: 0.4;
+            border-color: #e67e22;
+        }
+
+        .photo-item.sortable-drag {
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .save-order-bar {
+            display: none;
+            background: #fff3cd;
+            border: 2px solid #e67e22;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-top: 1rem;
+            text-align: center;
+            position: sticky;
+            bottom: 1rem;
+            z-index: 10;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .save-order-bar.visible {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .save-order-bar span {
+            color: #856404;
+            font-weight: 500;
+        }
+
+        .save-order-btn {
+            background: #27ae60;
+        }
+
+        .save-order-btn:hover {
+            background: #219a52;
+        }
+
+        .discard-order-btn {
+            background: #95a5a6;
+        }
+
+        .discard-order-btn:hover {
+            background: #7f8c8d;
+        }
+
+        /* Reviews */
         .review-item {
             border: 2px solid #ddd;
             border-radius: 8px;
@@ -353,6 +473,12 @@
                     <input type="text" id="alt_text" name="alt_text" placeholder="e.g., Kitchen renovation project">
                 </div>
 
+                <div class="form-group">
+                    <label for="project_name">Project Name (optional)</label>
+                    <input type="text" id="project_name" name="project_name" list="project-list" placeholder="e.g., Smith Kitchen Remodel">
+                    <datalist id="project-list"></datalist>
+                </div>
+
                 <div class="upload-progress" id="upload-progress">
                     <div class="upload-progress-bar" id="upload-progress-bar"></div>
                 </div>
@@ -360,9 +486,14 @@
                 <button type="submit" id="upload-btn" disabled>Upload Photos</button>
             </form>
 
-            <h2 style="margin-top: 2rem;">Existing Photos</h2>
+            <h2 style="margin-top: 2rem;">Existing Photos <small style="font-weight:normal; color:#777;">(drag to reorder)</small></h2>
             <div class="photo-grid" id="photo-grid">
                 <p class="loading">Loading photos...</p>
+            </div>
+            <div class="save-order-bar" id="save-order-bar">
+                <span>You have unsaved order changes</span>
+                <button class="save-order-btn" onclick="saveOrder()">Save Order</button>
+                <button class="discard-order-btn" onclick="discardOrder()">Discard</button>
             </div>
         </div>
 
@@ -407,6 +538,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="supabase-config.js"></script>
     <script>
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -425,6 +557,7 @@
             if (ok) {
                 loadPhotos();
                 loadReviews();
+                loadProjectNames();
             }
         });
 
@@ -436,11 +569,19 @@
             setTimeout(() => { el.className = 'message'; }, 4000);
         }
 
+        // Load existing project names for datalist autocomplete
+        async function loadProjectNames() {
+            const { data: photos } = await sb.from('photos').select('project_name');
+            if (!photos) return;
+            const names = [...new Set(photos.map(p => p.project_name).filter(Boolean))].sort();
+            const datalist = document.getElementById('project-list');
+            datalist.innerHTML = names.map(n => `<option value="${n}">`).join('');
+        }
+
         // ==================== IMAGE COMPRESSION ====================
 
         function compressImage(file, maxSize = 1600, quality = 0.8) {
             return new Promise((resolve) => {
-                // If file is already small (under 500KB), skip compression
                 if (file.size < 500 * 1024) {
                     resolve(file);
                     return;
@@ -455,7 +596,6 @@
                     let width = img.width;
                     let height = img.height;
 
-                    // Resize if larger than maxSize
                     if (width > maxSize || height > maxSize) {
                         if (width > height) {
                             height = Math.round((height * maxSize) / width);
@@ -473,7 +613,6 @@
                     ctx.drawImage(img, 0, 0, width, height);
 
                     canvas.toBlob((blob) => {
-                        // Create a new File object with .jpg extension
                         const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
                             type: 'image/jpeg',
                             lastModified: Date.now()
@@ -484,7 +623,7 @@
 
                 img.onerror = () => {
                     URL.revokeObjectURL(url);
-                    resolve(file); // Fall back to original on error
+                    resolve(file);
                 };
 
                 img.src = url;
@@ -495,6 +634,8 @@
 
         // Track selected files
         let selectedFiles = [];
+        let sortableInstance = null;
+        let orderChanged = false;
 
         // Drop zone setup
         const dropZone = document.getElementById('drop-zone');
@@ -576,11 +717,12 @@
             });
         }
 
+        // Load and display photos with drag-and-drop reordering
         async function loadPhotos() {
             const { data: photos, error } = await sb
                 .from('photos')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('sort_order', { ascending: true });
 
             const grid = document.getElementById('photo-grid');
 
@@ -598,16 +740,135 @@
             photos.forEach(photo => {
                 const item = document.createElement('div');
                 item.className = 'photo-item';
+                item.setAttribute('data-id', photo.id);
                 item.innerHTML = `
                     <img src="${photo.public_url}" alt="${photo.alt_text || ''}">
                     <div class="photo-info">
                         <p><strong>Description:</strong> ${photo.alt_text || 'None'}</p>
+                        <p><strong>Project:</strong> ${photo.project_name || 'None'}</p>
                         <p><strong>Added:</strong> ${new Date(photo.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        <button class="delete-btn" onclick="deletePhoto(${photo.id}, '${photo.storage_path}')">Delete</button>
+                        <div class="photo-btn-row">
+                            <button class="edit-btn" onclick="editPhoto(${photo.id}, '${(photo.alt_text || '').replace(/'/g, "\\'")}', '${(photo.project_name || '').replace(/'/g, "\\'")}')">Edit</button>
+                            <button class="delete-btn" onclick="deletePhoto(${photo.id}, '${photo.storage_path}')">Delete</button>
+                        </div>
                     </div>
                 `;
                 grid.appendChild(item);
             });
+
+            // Initialize SortableJS
+            if (sortableInstance) {
+                sortableInstance.destroy();
+            }
+
+            sortableInstance = new Sortable(grid, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                onEnd: function () {
+                    orderChanged = true;
+                    document.getElementById('save-order-bar').classList.add('visible');
+                }
+            });
+
+            // Reset unsaved state
+            orderChanged = false;
+            document.getElementById('save-order-bar').classList.remove('visible');
+        }
+
+        // Edit photo inline
+        function editPhoto(id, currentAlt, currentProject) {
+            const item = document.querySelector(`.photo-item[data-id="${id}"]`);
+            if (!item) return;
+
+            const infoDiv = item.querySelector('.photo-info');
+            infoDiv.outerHTML = `
+                <div class="edit-form" data-id="${id}">
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" class="edit-alt" value="${currentAlt}" placeholder="Photo description">
+                    </div>
+                    <div class="form-group">
+                        <label>Project Name</label>
+                        <input type="text" class="edit-project" value="${currentProject}" list="project-list" placeholder="Project name">
+                    </div>
+                    <div class="edit-btn-row">
+                        <button class="save-edit-btn" onclick="saveEdit(${id})">Save</button>
+                        <button class="cancel-edit-btn" onclick="loadPhotos()">Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Save photo edit
+        async function saveEdit(id) {
+            const form = document.querySelector(`.edit-form[data-id="${id}"]`);
+            const altText = form.querySelector('.edit-alt').value;
+            const projectName = form.querySelector('.edit-project').value || null;
+
+            const saveBtn = form.querySelector('.save-edit-btn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            const { error } = await sb.from('photos')
+                .update({ alt_text: altText, project_name: projectName })
+                .eq('id', id);
+
+            if (error) {
+                showMessage('Error updating photo: ' + error.message, 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+                return;
+            }
+
+            showMessage('Photo updated!', 'success');
+            loadPhotos();
+            loadProjectNames();
+        }
+
+        // Save drag-and-drop order
+        async function saveOrder() {
+            const grid = document.getElementById('photo-grid');
+            const items = grid.querySelectorAll('.photo-item[data-id]');
+            const saveBtn = document.querySelector('.save-order-btn');
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            let hasError = false;
+
+            for (let i = 0; i < items.length; i++) {
+                const photoId = parseInt(items[i].getAttribute('data-id'));
+                const newOrder = i + 1;
+
+                const { error } = await sb
+                    .from('photos')
+                    .update({ sort_order: newOrder })
+                    .eq('id', photoId);
+
+                if (error) {
+                    hasError = true;
+                    console.error('Error updating photo ' + photoId + ':', error);
+                }
+            }
+
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Order';
+
+            if (hasError) {
+                showMessage('Some photos failed to update order. Please try again.', 'error');
+            } else {
+                showMessage('Photo order saved!', 'success');
+                orderChanged = false;
+                document.getElementById('save-order-bar').classList.remove('visible');
+            }
+        }
+
+        // Discard order changes
+        function discardOrder() {
+            orderChanged = false;
+            document.getElementById('save-order-bar').classList.remove('visible');
+            loadPhotos();
         }
 
         // Handle multi-photo upload
@@ -620,6 +881,7 @@
             }
 
             const altText = document.getElementById('alt_text').value;
+            const projectName = document.getElementById('project_name').value || null;
             const total = selectedFiles.length;
             let uploaded = 0;
             let failed = [];
@@ -630,20 +892,27 @@
             progressContainer.style.display = 'block';
             progressBar.style.width = '0%';
 
+            // Get current max sort_order
+            const { data: maxRow } = await sb
+                .from('photos')
+                .select('sort_order')
+                .order('sort_order', { ascending: false })
+                .limit(1)
+                .single();
+
+            let nextOrder = (maxRow && maxRow.sort_order ? maxRow.sort_order : 0) + 1;
+
             for (let i = 0; i < total; i++) {
                 const file = selectedFiles[i];
                 uploadBtn.textContent = 'Compressing & uploading ' + (i + 1) + ' of ' + total + '...';
                 progressBar.style.width = ((i / total) * 100) + '%';
 
                 try {
-                    // Compress image before upload
                     const compressed = await compressImage(file);
 
-                    // Generate unique filename (always .jpg after compression)
                     const filename = Date.now() + '_' + Math.random().toString(36).substring(2, 8) + '.jpg';
                     const storagePath = filename;
 
-                    // Upload compressed image to Supabase Storage
                     const { error: uploadError } = await sb.storage
                         .from('photos')
                         .upload(storagePath, compressed);
@@ -653,16 +922,16 @@
                         continue;
                     }
 
-                    // Get public URL
                     const { data: urlData } = sb.storage.from('photos').getPublicUrl(storagePath);
                     const publicUrl = urlData.publicUrl;
 
-                    // Insert record into database
                     const { error: dbError } = await sb.from('photos').insert({
                         filename: filename,
                         alt_text: altText,
                         storage_path: storagePath,
-                        public_url: publicUrl
+                        public_url: publicUrl,
+                        sort_order: nextOrder++,
+                        project_name: projectName
                     });
 
                     if (dbError) {
@@ -688,20 +957,20 @@
             selectedFiles = [];
             updatePreviews();
             document.getElementById('alt_text').value = '';
+            document.getElementById('project_name').value = '';
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Upload Photos';
             loadPhotos();
+            loadProjectNames();
         });
 
         async function deletePhoto(id, storagePath) {
             if (!confirm('Are you sure you want to delete this photo?')) return;
 
-            // Delete from storage
             await sb.storage.from('photos').remove([storagePath]);
 
-            // Delete from database
             const { error } = await sb.from('photos').delete().eq('id', id);
 
             if (error) {

@@ -10,6 +10,8 @@ CREATE TABLE photos (
     alt_text TEXT,
     storage_path TEXT NOT NULL,
     public_url TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    project_name TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -34,6 +36,9 @@ CREATE POLICY "Public can read reviews" ON reviews FOR SELECT USING (true);
 -- Only logged-in admin can INSERT photos and reviews
 CREATE POLICY "Admin can insert photos" ON photos FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Admin can insert reviews" ON reviews FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- Only logged-in admin can UPDATE photos (edit descriptions, project names, sort order)
+CREATE POLICY "Admin can update photos" ON photos FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Only logged-in admin can DELETE photos and reviews
 CREATE POLICY "Admin can delete photos" ON photos FOR DELETE USING (auth.role() = 'authenticated');

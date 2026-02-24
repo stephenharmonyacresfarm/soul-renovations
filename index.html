@@ -180,6 +180,49 @@
             gap: 1.5rem;
         }
 
+        /* Project Cards */
+        .project-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            cursor: pointer;
+            aspect-ratio: 4/3;
+            background: #f0f0f0;
+        }
+
+        .project-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .project-card:hover img {
+            transform: scale(1.1);
+        }
+
+        .project-card-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 2rem 1.5rem 1.2rem;
+            color: white;
+        }
+
+        .project-card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .project-card-count {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Gallery Items (inside project view) */
         .gallery-item {
             position: relative;
             overflow: hidden;
@@ -213,6 +256,33 @@
 
         .gallery-item:hover::after {
             opacity: 0.9;
+        }
+
+        /* Back button for project drill-down */
+        .gallery-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: none;
+            border: 2px solid #2c3e50;
+            color: #2c3e50;
+            padding: 0.6rem 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .gallery-back:hover {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .gallery-project-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
         }
 
         /* Lightbox */
@@ -615,6 +685,7 @@
     <section id="gallery" class="gallery">
         <div class="container">
             <h2>Our Work</h2>
+            <div id="gallery-nav"></div>
             <div class="gallery-grid" id="gallery-grid">
                 <!-- Photos will be loaded dynamically from database -->
                 <p style="text-align: center; color: #999;">Loading gallery...</p>
@@ -694,6 +765,7 @@
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Gallery functionality
+        let allPhotos = [];
         let galleryImages = [];
         let currentImageIndex = 0;
 
@@ -702,7 +774,7 @@
                 const { data: photos, error } = await sb
                     .from('photos')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('sort_order', { ascending: true });
 
                 if (error) throw error;
 
@@ -711,28 +783,102 @@
                     return;
                 }
 
-                galleryImages = photos.map(photo => photo.public_url);
-
-                const galleryGrid = document.getElementById('gallery-grid');
-                galleryGrid.innerHTML = '';
-
-                photos.forEach((photo, index) => {
-                    const galleryItem = document.createElement('div');
-                    galleryItem.className = 'gallery-item';
-                    galleryItem.onclick = () => openLightbox(index);
-
-                    const img = document.createElement('img');
-                    img.src = photo.public_url;
-                    img.alt = photo.alt_text || 'Project photo';
-                    img.loading = 'lazy';
-
-                    galleryItem.appendChild(img);
-                    galleryGrid.appendChild(galleryItem);
-                });
+                allPhotos = photos;
+                showProjectCards();
             } catch (error) {
                 console.error('Error loading photos:', error);
                 document.getElementById('gallery-grid').innerHTML = '<p style="text-align: center; color: #e74c3c;">Error loading photos.</p>';
             }
+        }
+
+        function showProjectCards() {
+            const galleryGrid = document.getElementById('gallery-grid');
+            const galleryNav = document.getElementById('gallery-nav');
+            galleryGrid.innerHTML = '';
+            galleryNav.innerHTML = '';
+
+            // Group photos by project
+            const projects = {};
+            allPhotos.forEach(photo => {
+                const name = photo.project_name || 'Other Work';
+                if (!projects[name]) projects[name] = [];
+                projects[name].push(photo);
+            });
+
+            const projectNames = Object.keys(projects);
+
+            // If only one project (or all ungrouped), show photos directly
+            if (projectNames.length === 1) {
+                showProjectPhotos(projectNames[0], false);
+                return;
+            }
+
+            // Show project cards
+            projectNames.forEach(name => {
+                const photos = projects[name];
+                const coverPhoto = photos[0];
+
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                card.onclick = () => showProjectPhotos(name, true);
+
+                const img = document.createElement('img');
+                img.src = coverPhoto.public_url;
+                img.alt = name;
+                img.loading = 'lazy';
+
+                const overlay = document.createElement('div');
+                overlay.className = 'project-card-overlay';
+                overlay.innerHTML = `
+                    <div class="project-card-title">${name}</div>
+                    <div class="project-card-count">${photos.length} photo${photos.length !== 1 ? 's' : ''}</div>
+                `;
+
+                card.appendChild(img);
+                card.appendChild(overlay);
+                galleryGrid.appendChild(card);
+            });
+        }
+
+        function showProjectPhotos(projectName, showBack) {
+            const galleryGrid = document.getElementById('gallery-grid');
+            const galleryNav = document.getElementById('gallery-nav');
+            galleryGrid.innerHTML = '';
+            galleryNav.innerHTML = '';
+
+            // Filter photos for this project
+            const photos = allPhotos.filter(p =>
+                (p.project_name || 'Other Work') === projectName
+            );
+
+            galleryImages = photos.map(p => p.public_url);
+
+            if (showBack) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'gallery-back';
+                backBtn.innerHTML = '&#10094; All Projects';
+                backBtn.onclick = showProjectCards;
+                galleryNav.appendChild(backBtn);
+
+                const title = document.createElement('h3');
+                title.className = 'gallery-project-title';
+                title.textContent = projectName;
+                galleryNav.appendChild(title);
+            }
+
+            photos.forEach((photo, index) => {
+                const galleryItem = document.createElement('div');
+                galleryItem.className = 'gallery-item';
+                galleryItem.onclick = () => openLightbox(index);
+
+                const img = document.createElement('img');
+                img.src = photo.public_url;
+                img.alt = photo.alt_text || 'Project photo';
+                img.loading = 'lazy';
+
+                galleryItem.appendChild(img);
+                galleryGrid.appendChild(galleryItem);
+            });
         }
 
         function openLightbox(index) {
